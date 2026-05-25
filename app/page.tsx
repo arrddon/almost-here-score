@@ -1,8 +1,17 @@
-// src/app/page.tsx
+// app/page.tsx
+
+"use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
+import { clear } from "idb-keyval";
 
 export default function Home() {
+  useEffect(() => {
+    sessionStorage.clear();
+    clear();
+  }, []);
+
   return (
     <main className="min-h-screen bg-black text-white overflow-hidden relative">
 

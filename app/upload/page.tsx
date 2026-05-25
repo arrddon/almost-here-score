@@ -41,6 +41,12 @@ export default function UploadPage() {
   };
 
   const handleFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    sessionStorage.removeItem("uploadedImages");
+    sessionStorage.removeItem("selectedImage");
+    sessionStorage.removeItem("originalImage");
+    sessionStorage.removeItem("traceMask");
+    sessionStorage.removeItem("tracePoints");
+    
     const files = Array.from(event.target.files || []);
     const remainingSlots = 3 - images.length;
     const selectedFiles = files.slice(0, remainingSlots);
@@ -60,12 +66,14 @@ export default function UploadPage() {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const continueToSelect = () => {
-    if (images.length === 0) return;
-
+const continueToSelect = () => {
+  try {
     sessionStorage.setItem("uploadedImages", JSON.stringify(images));
     router.push("/select");
-  };
+  } catch (error) {
+    alert("Images are too large. Please upload fewer or smaller images.");
+  }
+};
 
   return (
     <main className="min-h-screen bg-black text-white overflow-hidden relative">
