@@ -12,6 +12,7 @@ import { supabase } from "../../lib/supabase";
 import PreviewMesh from "../../components/PreviewMesh";
 
 type PromptAnswers = {
+  name?: string;
   remains?: string;
   repeated?: string;
   rule?: string;
@@ -34,6 +35,7 @@ export default function PreviewPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  
 
   useEffect(() => {
     const loadData = async () => {
@@ -239,6 +241,8 @@ const exportGLB = async (
         transformed_image_url: transformedImageUrl,
         mesh_json_url: meshJsonUrl,
         glb_url: glbUrl,
+        
+        author_name: promptAnswers.name || "",
 
         prompt_answers: promptAnswers,
         text_content: combinedText,
@@ -317,10 +321,16 @@ const exportGLB = async (
           <div className="w-full">
             <div className="aspect-[3/4] bg-[#eeeeea] text-black p-5 flex flex-col justify-between shadow-2xl">
               <div>
-                <div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-black/50">
-                  <span>Almost Here</span>
-                  <span>Pool Trace</span>
+              <div className="flex justify-between items-start text-[10px] uppercase tracking-[0.18em] text-black/50">
+                <div>
+                  <div>Almost Here</div>
+                  <div className="mt-1 text-[9px] tracking-[0.12em] text-black/35">
+                    By {promptAnswers.name || "Unknown"}
+                  </div>
                 </div>
+
+                <span>Pool Trace</span>
+              </div>
 
                 <div className="mt-5 aspect-square bg-black overflow-hidden">
                   {originalImage && traceMask && meshJson ? (

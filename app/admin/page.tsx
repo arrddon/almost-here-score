@@ -13,6 +13,7 @@ type WorkshopAsset = {
   trace_mask_url: string | null;
   transformed_image_url: string | null;
   mesh_json_url: string | null;
+  author_name: string | null;
   prompt_answers: {
     remains?: string;
     repeated?: string;
@@ -92,8 +93,24 @@ export default function AdminPage() {
     pdf.setFont("helvetica", "normal");
 
     pdf.setFontSize(6);
+    pdf.setTextColor(0, 0, 0);
     pdf.text("ALMOST HERE", 8, 8);
-    pdf.text("POOL TRACE", pageWidth - 8, 8, { align: "right" });
+
+    pdf.setFontSize(4.5);
+    pdf.setTextColor(90, 90, 90);
+
+    pdf.text(
+      `BY ${(asset.author_name || "UNKNOWN").toUpperCase()}`,
+      8,
+      11
+    );
+
+    pdf.setFontSize(6);
+    pdf.setTextColor(0, 0, 0);
+
+    pdf.text("POOL TRACE", pageWidth - 8, 8, {
+      align: "right",
+    });
 
     if (asset.transformed_image_url) {
       const imageData = await loadImageAsDataUrl(asset.transformed_image_url);
@@ -159,6 +176,15 @@ export default function AdminPage() {
       pdf.setFontSize(6);
       pdf.text("ALMOST HERE", 8, 8);
       pdf.text("POOL TRACE", 97, 8, { align: "right" });
+
+      pdf.setFontSize(4.5);
+      pdf.setTextColor(90, 90, 90);
+
+      pdf.text(
+        `BY ${(asset.author_name || "UNKNOWN").toUpperCase()}`,
+        8,
+        11
+      );
 
       if (asset.transformed_image_url) {
         const imageData = await loadImageAsDataUrl(asset.transformed_image_url);
@@ -249,7 +275,12 @@ export default function AdminPage() {
                 <div className="aspect-[3/4] bg-[#eeeeea] text-black p-4 flex flex-col justify-between">
                   <div>
                     <div className="flex justify-between text-[9px] uppercase tracking-[0.18em] text-black/50">
-                      <span>Almost Here</span>
+                    <div>
+                      <div>Almost Here</div>
+                      <div className="mt-1 text-[9px] tracking-[0.12em] text-black/35">
+                        By {asset.author_name || "Unknown"}
+                      </div>
+                    </div>
                       <span>{asset.print_status || "pending"}</span>
                     </div>
 

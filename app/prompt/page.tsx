@@ -10,6 +10,7 @@ export default function PromptPage() {
   const router = useRouter();
 
   const [answers, setAnswers] = useState({
+    name: "",
     remains: "",
     repeated: "",
     rule: "",
@@ -62,7 +63,20 @@ export default function PromptPage() {
               the Pool
             </h1>
 
-            <div className="mt-10 border-t border-white/20 pt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="mt-10 border-t border-white/20 pt-8">
+              <div className="text-xs uppercase tracking-[0.22em] text-neutral-500 mb-3">
+                Name
+              </div>
+
+              <input
+                value={answers.name}
+                onChange={(e) => updateAnswer("name", e.target.value)}
+                placeholder="Your name..."
+                className="w-full md:w-[420px] bg-white/[0.03] border border-white/10 px-4 py-4 text-2xl font-light outline-none placeholder:text-neutral-700 focus:border-white/40"
+              />
+            </div>
+
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
                 ["remains", "What traces remain here?"],
                 ["repeated", "What happened repeatedly?"],
