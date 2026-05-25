@@ -9,31 +9,44 @@ import { useState } from "react";
 export default function UploadPage() {
   const router = useRouter();
   const [images, setImages] = useState<string[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const resizeImage = (
     file: File,
-    maxWidth = 2200,
-    quality = 0.9
+    maxWidth = 1600,
+    quality = 0.8
   ): Promise<string> => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const img = new Image();
       const reader = new FileReader();
+
+      reader.onerror = () => reject(new Error("Failed to read image"));
 
       reader.onload = () => {
         img.src = reader.result as string;
       };
 
+      img.onerror = () => reject(new Error("Failed to load image"));
+
       img.onload = () => {
-        const scale = Math.min(1, maxWidth / img.width);
-        const canvas = document.createElement("canvas");
+        try {
+          const scale = Math.min(1, maxWidth / img.width);
+          const width = Math.round(img.width * scale);
+          const height = Math.round(img.height * scale);
 
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
 
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const ctx = canvas.getContext("2d", { alpha: false });
+          if (!ctx) throw new Error("Canvas not supported");
 
-        resolve(canvas.toDataURL("image/jpeg", quality));
+          ctx.drawImage(img, 0, 0, width, height);
+
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        } catch (error) {
+          reject(error);
+        }
       };
 
       reader.readAsDataURL(file);
@@ -41,52 +54,59 @@ export default function UploadPage() {
   };
 
   const handleFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    sessionStorage.removeItem("uploadedImages");
-    sessionStorage.removeItem("selectedImage");
-    sessionStorage.removeItem("originalImage");
-    sessionStorage.removeItem("traceMask");
-    sessionStorage.removeItem("tracePoints");
-    
-    const files = Array.from(event.target.files || []);
-    const remainingSlots = 3 - images.length;
-    const selectedFiles = files.slice(0, remainingSlots);
+    try {
+      setIsProcessing(true);
 
-    if (selectedFiles.length === 0) return;
+      sessionStorage.removeItem("uploadedImages");
+      sessionStorage.removeItem("selectedImage");
+      sessionStorage.removeItem("originalImage");
+      sessionStorage.removeItem("traceMask");
+      sessionStorage.removeItem("tracePoints");
 
-    const compressed = await Promise.all(
-      selectedFiles.map((file) => resizeImage(file))
-    );
+      const files = Array.from(event.target.files || []);
+      const remainingSlots = 3 - images.length;
+      const selectedFiles = files.slice(0, remainingSlots);
 
-    setImages((prev) => [...prev, ...compressed].slice(0, 3));
+      if (selectedFiles.length === 0) return;
 
-    event.target.value = "";
+      const compressed: string[] = [];
+
+      for (const file of selectedFiles) {
+        const resized = await resizeImage(file);
+        compressed.push(resized);
+      }
+
+      setImages((prev) => [...prev, ...compressed].slice(0, 3));
+    } catch (error: any) {
+      console.error(error);
+      alert("Image upload failed. Please try a smaller image or take a new photo.");
+    } finally {
+      setIsProcessing(false);
+      event.target.value = "";
+    }
   };
 
   const removeImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-const continueToSelect = () => {
-  try {
-    sessionStorage.setItem("uploadedImages", JSON.stringify(images));
-    router.push("/select");
-  } catch (error) {
-    alert("Images are too large. Please upload fewer or smaller images.");
-  }
-};
+  const continueToSelect = () => {
+    try {
+      sessionStorage.setItem("uploadedImages", JSON.stringify(images));
+      router.push("/select");
+    } catch {
+      alert("Images are too large. Please upload fewer or smaller images.");
+    }
+  };
 
   return (
-    <main className="min-h-screen bg-black text-white overflow-hidden relative">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(120,160,255,0.12),transparent_45%)]" />
-
-      <section className="relative z-10 min-h-screen flex flex-col justify-between p-8">
+    <main className="safe-screen bg-black text-white overflow-hidden relative">
+      <section className="relative z-10 page-shell flex flex-col justify-between p-8">
         <div className="flex justify-between items-center text-sm uppercase tracking-[0.22em] text-neutral-500">
           <Link href="/" className="hover:text-white transition">
             Back
           </Link>
-          <span className="text-white">
-            01 / Upload / {images.length}/3
-          </span>
+          <span className="text-white">01 / Upload / {images.length}/3</span>
         </div>
 
         <div className="flex-1 flex items-center">
@@ -114,13 +134,8 @@ const continueToSelect = () => {
                           alt={`Uploaded ${slot + 1}`}
                           className="w-full h-full object-cover"
                         />
-
                         <div className="absolute top-3 left-3 text-xs uppercase tracking-[0.2em] text-white/80">
                           {slot + 1}
-                        </div>
-
-                        <div className="absolute inset-0 opacity-0 hover:opacity-100 transition flex items-center justify-center bg-black/50 text-sm uppercase tracking-[0.2em]">
-                          Remove
                         </div>
                       </button>
                     );
@@ -129,23 +144,24 @@ const continueToSelect = () => {
                   return (
                     <label
                       key={slot}
-                      className="aspect-[4/5] border border-dashed border-white/20 bg-white/[0.025] flex items-center justify-center cursor-pointer hover:bg-white/[0.06] transition"
+                      className="aspect-[4/5] border border-dashed border-white/20 bg-white/[0.025] flex items-center justify-center cursor-pointer"
                     >
                       <div className="text-center">
                         <div className="text-5xl font-light text-neutral-500">
                           +
                         </div>
                         <div className="mt-3 text-xs uppercase tracking-[0.2em] text-neutral-600">
-                          Add image
+                          {isProcessing ? "Processing" : "Add image"}
                         </div>
                       </div>
 
                       <input
                         type="file"
                         accept="image/*"
-                        multiple
+                        capture="environment"
                         className="hidden"
                         onChange={handleFiles}
+                        disabled={isProcessing}
                       />
                     </label>
                   );
@@ -155,17 +171,15 @@ const continueToSelect = () => {
               <div className="mt-10 flex justify-end">
                 <button
                   onClick={continueToSelect}
-                  disabled={images.length === 0}
+                  disabled={images.length === 0 || isProcessing}
                   className="px-6 py-3 border border-white/40 text-lg text-white hover:bg-white hover:text-black transition disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-white"
                 >
-                  Continue →
+                  {isProcessing ? "Processing..." : "Continue →"}
                 </button>
               </div>
             </div>
           </div>
         </div>
-
-
       </section>
     </main>
   );

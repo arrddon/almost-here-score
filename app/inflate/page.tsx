@@ -395,8 +395,8 @@ export default function InflatePage() {
   const canRender = imageUrl && imageLayout && polygon.length > 3;
 
   return (
-    <main className="min-h-screen text-white bg-black overflow-hidden relative">
-      <section className="relative z-10 min-h-screen flex flex-col justify-between p-8">
+    <main className="safe-screen text-white bg-black overflow-hidden relative">
+      <section className="relative z-10 page-shell flex flex-col justify-between p-8">
         <div className="flex justify-between items-center text-sm uppercase tracking-[0.22em] text-neutral-500">
           <Link href="/trace" className="hover:text-white transition">
             Back

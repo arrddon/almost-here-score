@@ -116,3 +116,28 @@ a {
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.18);
 }
+
+
+.safe-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.page-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+}
+
+@media (min-width: 768px) {
+  .page-shell {
+    padding: 32px;
+  }
+}
+
+.hero-title {
+  font-size: clamp(56px, 11vw, 128px);
+  line-height: 0.88;
+  letter-spacing: -0.05em;
+  font-weight: 300;
+}

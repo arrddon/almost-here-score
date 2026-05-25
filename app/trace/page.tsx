@@ -179,10 +179,10 @@ export default function TracePage() {
   };
 
   return (
-    <main className="min-h-screen bg-black text-white overflow-hidden relative">
+    <main className="safe-screen bg-black text-white overflow-hidden relative">
       <div className="absolute inset-0 " />
 
-      <section className="relative z-10 min-h-screen flex flex-col justify-between p-8">
+      <section className="relative z-10 page-shell flex flex-col justify-between p-8">
         <div className="flex justify-between items-center text-sm uppercase tracking-[0.22em] text-neutral-500">
           <Link href="/select" className="hover:text-white transition">
             Back
