@@ -158,7 +158,6 @@ export default function UploadPage() {
                       <input
                         type="file"
                         accept="image/*"
-                        capture="environment"
                         className="hidden"
                         onChange={handleFiles}
                         disabled={isProcessing}
