@@ -1,4 +1,4 @@
-// src/app/prompt/page.tsx
+// app/prompt/page.tsx
 
 "use client";
 
@@ -6,93 +6,100 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-const prompts = [
-  "What remains here?",
-  "What happened repeatedly?",
-  "What rule existed in this place?",
-  "Who once moved through this water?",
-];
-
 export default function PromptPage() {
   const router = useRouter();
-  const [selectedPrompt, setSelectedPrompt] = useState(prompts[0]);
-  const [text, setText] = useState("");
+
+  const [answers, setAnswers] = useState({
+    remains: "",
+    repeated: "",
+    rule: "",
+    body: "",
+  });
+
+  const updateAnswer = (key: keyof typeof answers, value: string) => {
+    setAnswers((prev) => ({
+      ...prev,
+      [key]: value.slice(0, 90),
+    }));
+  };
 
   const continueToPreview = () => {
-    sessionStorage.setItem("promptQuestion", selectedPrompt);
-    sessionStorage.setItem("textContent", text);
+    sessionStorage.setItem("promptAnswers", JSON.stringify(answers));
+
+    const combinedText = [
+      answers.remains,
+      answers.repeated,
+      answers.rule,
+      answers.body,
+    ]
+      .filter(Boolean)
+      .join(" / ");
+
+    sessionStorage.setItem("textContent", combinedText);
     router.push("/preview");
   };
 
+  const canContinue = Object.values(answers).some((value) => value.trim());
+
   return (
     <main className="min-h-screen bg-black text-white overflow-hidden relative">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(120,160,255,0.1),transparent_45%)]" />
+      <div className="absolute inset-0 " />
+      <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_25%_20%,rgba(0,255,220,0.08),transparent_28%),radial-gradient(circle_at_80%_75%,rgba(255,120,220,0.08),transparent_30%)]" />
 
       <section className="relative z-10 min-h-screen flex flex-col justify-between p-8">
-        <div className="flex justify-between text-xs uppercase tracking-[0.25em] text-neutral-600">
+        <div className="flex justify-between items-center text-sm uppercase tracking-[0.22em] text-neutral-500">
           <Link href="/inflate" className="hover:text-white transition">
             Back
           </Link>
-          <span>05 / Sentence</span>
+          <span className="text-white">05 / Sentence</span>
         </div>
 
         <div className="flex-1 flex items-center">
-          <div className="w-full max-w-4xl">
-            <h1 className="text-[48px] md:text-[72px] leading-[0.9] tracking-[-0.04em] font-light">
-              Write
+          <div className="w-full max-w-6xl">
+            <h1 className="text-[72px] md:text-[128px] leading-[0.88] tracking-[-0.05em] font-light">
+              Record
               <br />
-              One Line
+              the Pool
             </h1>
 
-            <div className="mt-12 border-t border-white/20 pt-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {prompts.map((prompt) => (
-                  <button
-                    key={prompt}
-                    onClick={() => setSelectedPrompt(prompt)}
-                    className={`text-left border px-4 py-4 text-lg transition ${
-                      selectedPrompt === prompt
-                        ? "border-white text-white bg-white/10"
-                        : "border-white/10 text-neutral-500 hover:text-white"
-                    }`}
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
+            <div className="mt-10 border-t border-white/20 pt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+              {[
+                ["remains", "What traces remain here?"],
+                ["repeated", "What happened repeatedly?"],
+                ["rule", "What rule shaped this environment?"],
+                ["body", "Who passed through this water?"],
+              ].map(([key, label]) => (
+                <div key={key}>
+                  <div className="text-xs uppercase tracking-[0.22em] text-neutral-500 mb-3">
+                    {label}
+                  </div>
 
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value.slice(0, 120))}
-                placeholder="Type here..."
-                className="mt-8 w-full h-40 bg-transparent border-t border-white/20 pt-6 text-3xl md:text-4xl font-light outline-none resize-none placeholder:text-neutral-700"
-              />
-
-              <div className="mt-4 flex justify-between text-xs uppercase tracking-[0.22em] text-neutral-700">
-                <span>Max 120 characters</span>
-                <span>{text.length}/120</span>
-              </div>
+                  <textarea
+                    value={answers[key as keyof typeof answers]}
+                    onChange={(e) =>
+                      updateAnswer(key as keyof typeof answers, e.target.value)
+                    }
+                    placeholder="Type one short line..."
+                    className="w-full h-32 bg-white/[0.03] border border-white/10 p-4 text-2xl font-light outline-none resize-none placeholder:text-neutral-700 focus:border-white/40"
+                  />
+                </div>
+              ))}
             </div>
 
-            <div className="mt-10 flex justify-between text-lg">
-              <Link href="/inflate" className="text-neutral-500 hover:text-white transition">
-                Back
-              </Link>
+            <div className="mt-10 flex justify-between items-center">
+
 
               <button
                 onClick={continueToPreview}
-                disabled={!text.trim()}
-                className="text-neutral-400 hover:text-white transition disabled:opacity-20"
+                disabled={!canContinue}
+                className="px-6 py-3 border border-white/40 text-lg text-white hover:bg-white hover:text-black transition disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-white"
               >
-                Preview →
+                Continue →
               </button>
             </div>
           </div>
         </div>
 
-        <div className="text-xs uppercase tracking-[0.25em] text-neutral-700">
-          Fiction / Rule / Incident / Memory
-        </div>
       </section>
     </main>
   );
