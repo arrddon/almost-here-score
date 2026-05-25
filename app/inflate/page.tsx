@@ -35,7 +35,7 @@ type MeshJson = {
   segments: number;
 };
 
-const MESH_SEGMENTS = 220;
+const MESH_SEGMENTS = 200;
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -361,6 +361,15 @@ export default function InflatePage() {
   const [inflate, setInflate] = useState(0.8);
   const [surfaceDetail, setSurfaceDetail] = useState(0.18);
   const [meshJson, setMeshJson] = useState<MeshJson | null>(null);
+  const handleMeshReady = async (mesh: MeshJson) => {
+  setMeshJson(mesh);
+
+  try {
+    await idbSet("meshJson", mesh);
+  } catch (error) {
+    console.error("Failed to save meshJson:", error);
+  }
+};
 
   useEffect(() => {
     setImageUrl(sessionStorage.getItem("selectedImage"));
@@ -372,10 +381,8 @@ export default function InflatePage() {
     if (storedLayout) setImageLayout(JSON.parse(storedLayout));
   }, []);
 
-  const continueToPrompt = async () => {
+  const continueToPrompt = () => {
     if (!meshJson) return;
-
-    await idbSet("meshJson", meshJson);
 
     sessionStorage.setItem("inflateAmount", String(inflate));
     sessionStorage.setItem("surfaceDetailAmount", String(surfaceDetail));
@@ -418,7 +425,7 @@ export default function InflatePage() {
                     imageLayout={imageLayout}
                     inflate={inflate}
                     surfaceDetail={surfaceDetail}
-                    onMeshReady={setMeshJson}
+                    onMeshReady={handleMeshReady}
                   />
 
                   <OrbitControls
