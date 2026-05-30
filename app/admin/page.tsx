@@ -6,6 +6,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import jsPDF from "jspdf";
 
+type PromptAnswers = {
+  name?: string;
+  sentence?: string;
+};
+
 type WorkshopAsset = {
   id: string;
   room_id: string;
@@ -13,13 +18,9 @@ type WorkshopAsset = {
   trace_mask_url: string | null;
   transformed_image_url: string | null;
   mesh_json_url: string | null;
+  glb_url?: string | null;
   author_name: string | null;
-  prompt_answers: {
-    remains?: string;
-    repeated?: string;
-    rule?: string;
-    body?: string;
-  } | null;
+  prompt_answers: PromptAnswers | null;
   text_content: string | null;
   inflate_amount: number | null;
   thickness_amount: number | null;
@@ -76,6 +77,58 @@ export default function AdminPage() {
     });
   };
 
+  const getAuthor = (asset: WorkshopAsset) => {
+    return asset.author_name || asset.prompt_answers?.name || "Unknown";
+  };
+
+  const getSentence = (asset: WorkshopAsset) => {
+    return asset.prompt_answers?.sentence || asset.text_content || "—";
+  };
+
+  const drawPdfCard = async (pdf: jsPDF, asset: WorkshopAsset) => {
+    const pageWidth = 105;
+    const pageHeight = 148;
+
+    pdf.setFillColor(238, 238, 234);
+    pdf.rect(0, 0, pageWidth, pageHeight, "F");
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(0, 0, 0);
+
+    pdf.setFontSize(6);
+    pdf.text("ALMOST HERE", 8, 8);
+
+    pdf.setFontSize(4.5);
+    pdf.setTextColor(90, 90, 90);
+    pdf.text(`BY ${getAuthor(asset).toUpperCase()}`, 8, 11);
+
+    pdf.setFontSize(6);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text("POOL TRACE", pageWidth - 8, 8, { align: "right" });
+
+    if (asset.transformed_image_url) {
+      const imageData = await loadImageAsDataUrl(asset.transformed_image_url);
+      pdf.addImage(imageData, "PNG", 8, 14, 89, 89);
+    }
+
+    pdf.setFontSize(5);
+    pdf.setTextColor(90, 90, 90);
+    pdf.text("SENTENCE", 8, 111);
+
+    pdf.setFontSize(8);
+    pdf.setTextColor(0, 0, 0);
+
+    const wrapped = pdf.splitTextToSize(getSentence(asset), 88);
+    pdf.text(wrapped.slice(0, 4), 8, 117);
+
+    pdf.setFontSize(5);
+    pdf.setTextColor(90, 90, 90);
+    pdf.text(`INFLATE ${asset.inflate_amount ?? ""}`, 8, 143);
+    pdf.text(`DETAIL ${asset.thickness_amount ?? ""}`, pageWidth - 8, 143, {
+      align: "right",
+    });
+  };
+
   const downloadCardPdf = async (asset: WorkshopAsset) => {
     const pdf = new jsPDF({
       orientation: "portrait",
@@ -83,73 +136,7 @@ export default function AdminPage() {
       format: "a6",
     });
 
-    const pageWidth = 105;
-    const pageHeight = 148;
-
-    pdf.setFillColor(238, 238, 234);
-    pdf.rect(0, 0, pageWidth, pageHeight, "F");
-
-    pdf.setTextColor(0, 0, 0);
-    pdf.setFont("helvetica", "normal");
-
-    pdf.setFontSize(6);
-    pdf.setTextColor(0, 0, 0);
-    pdf.text("ALMOST HERE", 8, 8);
-
-    pdf.setFontSize(4.5);
-    pdf.setTextColor(90, 90, 90);
-
-    pdf.text(
-      `BY ${(asset.author_name || "UNKNOWN").toUpperCase()}`,
-      8,
-      11
-    );
-
-    pdf.setFontSize(6);
-    pdf.setTextColor(0, 0, 0);
-
-    pdf.text("POOL TRACE", pageWidth - 8, 8, {
-      align: "right",
-    });
-
-    if (asset.transformed_image_url) {
-      const imageData = await loadImageAsDataUrl(asset.transformed_image_url);
-      pdf.addImage(imageData, "PNG", 8, 14, 89, 89);
-    }
-
-    const answers = asset.prompt_answers || {};
-
-    const fragments = [
-      ["REMAINS", answers.remains || "—"],
-      ["REPEATS", answers.repeated || "—"],
-      ["RULE", answers.rule || "—"],
-      ["BODY", answers.body || "—"],
-    ];
-
-    let y = 111;
-
-    fragments.forEach(([label, value], index) => {
-      const x = index % 2 === 0 ? 8 : 56;
-      const rowY = y + Math.floor(index / 2) * 18;
-
-      pdf.setFontSize(5);
-      pdf.setTextColor(90, 90, 90);
-      pdf.text(label, x, rowY);
-
-      pdf.setFontSize(8);
-      pdf.setTextColor(0, 0, 0);
-
-      const wrapped = pdf.splitTextToSize(value, 38);
-      pdf.text(wrapped.slice(0, 2), x, rowY + 5);
-    });
-
-    pdf.setFontSize(5);
-    pdf.setTextColor(90, 90, 90);
-    pdf.text(`INFLATE ${asset.inflate_amount ?? ""}`, 8, 143);
-    pdf.text(`THICKNESS ${asset.thickness_amount ?? ""}`, pageWidth - 8, 143, {
-      align: "right",
-    });
-
+    await drawPdfCard(pdf, asset);
     pdf.save(`almost-here-${asset.id}.pdf`);
   };
 
@@ -163,66 +150,8 @@ export default function AdminPage() {
     });
 
     for (let i = 0; i < assets.length; i++) {
-      const asset = assets[i];
-
       if (i > 0) pdf.addPage("a6", "portrait");
-
-      pdf.setFillColor(238, 238, 234);
-      pdf.rect(0, 0, 105, 148, "F");
-
-      pdf.setTextColor(0, 0, 0);
-      pdf.setFont("helvetica", "normal");
-
-      pdf.setFontSize(6);
-      pdf.text("ALMOST HERE", 8, 8);
-      pdf.text("POOL TRACE", 97, 8, { align: "right" });
-
-      pdf.setFontSize(4.5);
-      pdf.setTextColor(90, 90, 90);
-
-      pdf.text(
-        `BY ${(asset.author_name || "UNKNOWN").toUpperCase()}`,
-        8,
-        11
-      );
-
-      if (asset.transformed_image_url) {
-        const imageData = await loadImageAsDataUrl(asset.transformed_image_url);
-        pdf.addImage(imageData, "PNG", 8, 14, 89, 89);
-      }
-
-      const answers = asset.prompt_answers || {};
-
-      const fragments = [
-        ["REMAINS", answers.remains || "—"],
-        ["REPEATS", answers.repeated || "—"],
-        ["RULE", answers.rule || "—"],
-        ["BODY", answers.body || "—"],
-      ];
-
-      let y = 111;
-
-      fragments.forEach(([label, value], index) => {
-        const x = index % 2 === 0 ? 8 : 56;
-        const rowY = y + Math.floor(index / 2) * 18;
-
-        pdf.setFontSize(5);
-        pdf.setTextColor(90, 90, 90);
-        pdf.text(label, x, rowY);
-
-        pdf.setFontSize(8);
-        pdf.setTextColor(0, 0, 0);
-
-        const wrapped = pdf.splitTextToSize(value, 38);
-        pdf.text(wrapped.slice(0, 2), x, rowY + 5);
-      });
-
-      pdf.setFontSize(5);
-      pdf.setTextColor(90, 90, 90);
-      pdf.text(`INFLATE ${asset.inflate_amount ?? ""}`, 8, 143);
-      pdf.text(`THICKNESS ${asset.thickness_amount ?? ""}`, 97, 143, {
-        align: "right",
-      });
+      await drawPdfCard(pdf, assets[i]);
     }
 
     pdf.save("almost-here-print-queue.pdf");
@@ -233,15 +162,16 @@ export default function AdminPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-black text-white relative overflow-hidden">
-      <div className="absolute inset-0 " />
-
-      <section className="relative z-10 min-h-screen p-8">
+    <main className="safe-screen bg-black text-white overflow-x-hidden relative">
+      <section className="relative z-10 page-shell">
         <header className="flex justify-between items-center text-sm uppercase tracking-[0.22em] text-neutral-500">
           <span className="text-white">Admin / Print Queue</span>
 
           <div className="flex gap-6">
-            <button onClick={downloadAllPdf} className="hover:text-white transition">
+            <button
+              onClick={downloadAllPdf}
+              className="hover:text-white transition"
+            >
               Download All PDF
             </button>
 
@@ -252,7 +182,7 @@ export default function AdminPage() {
         </header>
 
         <div className="mt-16 flex justify-between items-end">
-          <h1 className="text-[72px] md:text-[128px] leading-[0.88] tracking-[-0.05em] font-light">
+          <h1 className="hero-title">
             Print
             <br />
             Queue
@@ -264,82 +194,69 @@ export default function AdminPage() {
         </div>
 
         <div className="mt-12 border-t border-white/20 pt-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {assets.map((asset) => {
-            const answers = asset.prompt_answers || {};
-
-            return (
-              <article
-                key={asset.id}
-                className="border border-white/10 bg-white/[0.03] p-4"
-              >
-                <div className="aspect-[3/4] bg-[#eeeeea] text-black p-4 flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between text-[9px] uppercase tracking-[0.18em] text-black/50">
+          {assets.map((asset) => (
+            <article
+              key={asset.id}
+              className="border border-white/10 bg-white/[0.03] p-4"
+            >
+              <div className="aspect-[3/4] bg-[#eeeeea] text-black p-4 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-start text-[9px] uppercase tracking-[0.18em] text-black/50">
                     <div>
                       <div>Almost Here</div>
-                      <div className="mt-1 text-[9px] tracking-[0.12em] text-black/35">
-                        By {asset.author_name || "Unknown"}
+                      <div className="mt-1 text-[8px] tracking-[0.12em] text-black/35">
+                        By {getAuthor(asset)}
                       </div>
                     </div>
-                      <span>{asset.print_status || "pending"}</span>
-                    </div>
 
-                    <div className="mt-4 aspect-square bg-black overflow-hidden">
-                      {asset.transformed_image_url && (
-                        <img
-                          src={asset.transformed_image_url}
-                          alt="Transformed asset"
-                          className="w-full h-full object-cover contrast-125 saturate-150"
-                        />
-                      )}
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 gap-3">
-                      {[
-                        ["Remains", answers.remains],
-                        ["Repeats", answers.repeated],
-                        ["Rule", answers.rule],
-                        ["Body", answers.body],
-                      ].map(([label, value]) => (
-                        <div key={label}>
-                          <div className="text-[8px] uppercase tracking-[0.16em] text-black/35">
-                            {label}
-                          </div>
-                          <p className="mt-1 text-xs leading-tight font-light">
-                            {value || "—"}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
+                    <span>{asset.print_status || "pending"}</span>
                   </div>
 
-                  <div className="mt-3 flex justify-between text-[8px] uppercase tracking-[0.16em] text-black/40">
-                    <span>Inflate {asset.inflate_amount}</span>
-                    <span>Thickness {asset.thickness_amount}</span>
+                  <div className="mt-4 aspect-square bg-black overflow-hidden">
+                    {asset.transformed_image_url && (
+                      <img
+                        src={asset.transformed_image_url}
+                        alt="Transformed asset"
+                        className="w-full h-full object-cover contrast-125 saturate-150"
+                      />
+                    )}
+                  </div>
+
+                  <div className="mt-4 border-t border-black/10 pt-4">
+                    <div className="text-[8px] uppercase tracking-[0.16em] text-black/35">
+                      Sentence
+                    </div>
+
+                    <p className="mt-2 text-xs leading-relaxed font-light text-black/80">
+                      {getSentence(asset)}
+                    </p>
                   </div>
                 </div>
 
-                <div className="mt-4 flex justify-between items-center text-sm">
-                  <button
-                    onClick={() => downloadCardPdf(asset)}
-                    className="text-neutral-400 hover:text-white transition"
-                  >
-                    Download PDF
-                  </button>
-
-                  <button
-                    onClick={() => markAsPrinted(asset.id)}
-                    className="px-4 py-2 border border-white/30 hover:bg-white hover:text-black transition disabled:opacity-30"
-                    disabled={asset.print_status === "printed"}
-                  >
-                    {asset.print_status === "printed"
-                      ? "Printed"
-                      : "Mark Printed"}
-                  </button>
+                <div className="mt-3 flex justify-between text-[8px] uppercase tracking-[0.16em] text-black/40">
+                  <span>Inflate {asset.inflate_amount}</span>
+                  <span>Detail {asset.thickness_amount}</span>
                 </div>
-              </article>
-            );
-          })}
+              </div>
+
+              <div className="mt-4 flex justify-between items-center text-sm">
+                <button
+                  onClick={() => downloadCardPdf(asset)}
+                  className="text-neutral-400 hover:text-white transition"
+                >
+                  Download PDF
+                </button>
+
+                <button
+                  onClick={() => markAsPrinted(asset.id)}
+                  className="px-4 py-2 border border-white/30 hover:bg-white hover:text-black transition disabled:opacity-30"
+                  disabled={asset.print_status === "printed"}
+                >
+                  {asset.print_status === "printed" ? "Printed" : "Mark Printed"}
+                </button>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
     </main>

@@ -13,10 +13,7 @@ import PreviewMesh from "../../components/PreviewMesh";
 
 type PromptAnswers = {
   name?: string;
-  remains?: string;
-  repeated?: string;
-  rule?: string;
-  body?: string;
+  sentence?: string;
 };
 
 export default function PreviewPage() {
@@ -35,7 +32,6 @@ export default function PreviewPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  
 
   useEffect(() => {
     const loadData = async () => {
@@ -68,23 +64,6 @@ export default function PreviewPage() {
     fileName: string
   ) => {
     const file = await dataUrlToFile(dataUrl, fileName);
-
-    const { error } = await supabase.storage.from(bucket).upload(fileName, file);
-    if (error) throw error;
-
-    const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
-    return data.publicUrl;
-  };
-
-  const uploadJson = async (
-    bucket: string,
-    jsonString: string,
-    fileName: string
-  ) => {
-    const file = new File([jsonString], fileName, {
-      type: "application/json",
-    });
-
     const { error } = await supabase.storage.from(bucket).upload(fileName, file);
     if (error) throw error;
 
@@ -93,67 +72,64 @@ export default function PreviewPage() {
   };
 
   const prepareGeometryForGLB = (geometry: THREE.BufferGeometry) => {
-  const glbGeometry = geometry.clone();
+    const glbGeometry = geometry.clone();
+    const uvAttribute = glbGeometry.getAttribute("uv");
 
-  const uvAttribute = glbGeometry.getAttribute("uv");
+    if (uvAttribute) {
+      const uvArray = uvAttribute.array as Float32Array;
 
-  if (uvAttribute) {
-    const uvArray = uvAttribute.array as Float32Array;
+      for (let i = 1; i < uvArray.length; i += 2) {
+        uvArray[i] = 1 - uvArray[i];
+      }
 
-    for (let i = 1; i < uvArray.length; i += 2) {
-      uvArray[i] = 1 - uvArray[i];
+      uvAttribute.needsUpdate = true;
     }
 
-    uvAttribute.needsUpdate = true;
-  }
+    glbGeometry.computeVertexNormals();
+    return glbGeometry;
+  };
 
-  glbGeometry.computeVertexNormals();
+  const exportGLB = async (
+    geometry: THREE.BufferGeometry,
+    textureUrl: string
+  ) => {
+    const texture = await new THREE.TextureLoader().loadAsync(textureUrl);
 
-  return glbGeometry;
-};
+    texture.flipY = false;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
 
-const exportGLB = async (
-  geometry: THREE.BufferGeometry,
-  textureUrl: string
-) => {
-  const texture = await new THREE.TextureLoader().loadAsync(textureUrl);
+    const material = new THREE.MeshStandardMaterial({
+      map: texture,
+      roughness: 0.34,
+      metalness: 0.04,
+      side: THREE.DoubleSide,
+    });
 
-  texture.flipY = false;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.needsUpdate = true;
+    const glbGeometry = prepareGeometryForGLB(geometry);
+    const mesh = new THREE.Mesh(glbGeometry, material);
+    mesh.name = "Almost_Here_Pillow_Trace";
 
-  const material = new THREE.MeshStandardMaterial({
-    map: texture,
-    roughness: 0.34,
-    metalness: 0.04,
-    side: THREE.DoubleSide,
-  });
+    const scene = new THREE.Scene();
+    scene.add(mesh);
 
-  const glbGeometry = prepareGeometryForGLB(geometry);
+    const exporter = new GLTFExporter();
 
-  const mesh = new THREE.Mesh(glbGeometry, material);
-  mesh.name = "Almost_Here_Pillow_Trace";
-
-  const scene = new THREE.Scene();
-  scene.add(mesh);
-
-  const exporter = new GLTFExporter();
-
-  return new Promise<Blob>((resolve, reject) => {
-    exporter.parse(
-      scene,
-      (result) => {
-        const blob = new Blob([result as ArrayBuffer], {
-          type: "model/gltf-binary",
-        });
-
-        resolve(blob);
-      },
-      (error) => reject(error),
-      { binary: true }
-    );
-  });
-};
+    return new Promise<Blob>((resolve, reject) => {
+      exporter.parse(
+        scene,
+        (result) => {
+          resolve(
+            new Blob([result as ArrayBuffer], {
+              type: "model/gltf-binary",
+            })
+          );
+        },
+        (error) => reject(error),
+        { binary: true }
+      );
+    });
+  };
 
   const uploadGLB = async (blob: Blob, fileName: string) => {
     const file = new File([blob], fileName, {
@@ -208,14 +184,6 @@ const exportGLB = async (
         );
       }
 
-      // const meshJsonUrl = meshJson
-      //   ? await uploadJson(
-      //       "mesh-json",
-      //       JSON.stringify(meshJson),
-      //       `${id}-mesh.json`
-      //     )
-      //   : "";
-      
       const meshJsonUrl = "";
 
       let glbUrl = "";
@@ -225,14 +193,7 @@ const exportGLB = async (
         glbUrl = await uploadGLB(glbBlob, `${id}-mesh.glb`);
       }
 
-      const combinedText = [
-        promptAnswers.remains,
-        promptAnswers.repeated,
-        promptAnswers.rule,
-        promptAnswers.body,
-      ]
-        .filter(Boolean)
-        .join(" / ");
+      const combinedText = promptAnswers.sentence || "";
 
       const { error } = await supabase.from("workshop_assets").insert({
         room_id: "bac",
@@ -241,7 +202,7 @@ const exportGLB = async (
         transformed_image_url: transformedImageUrl,
         mesh_json_url: meshJsonUrl,
         glb_url: glbUrl,
-        
+
         author_name: promptAnswers.name || "",
 
         prompt_answers: promptAnswers,
@@ -269,16 +230,9 @@ const exportGLB = async (
     }
   };
 
-  const fragments = [
-    ["Remains", promptAnswers.remains],
-    ["Repeats", promptAnswers.repeated],
-    ["Rule", promptAnswers.rule],
-    ["Body", promptAnswers.body],
-  ];
-
   return (
-    <main className="min-h-screen bg-black text-white overflow-hidden relative">
-      <section className="relative z-10 min-h-screen flex flex-col justify-between p-8">
+    <main className="safe-screen bg-black text-white overflow-x-hidden relative">
+      <section className="relative z-10 page-shell flex flex-col justify-between">
         <div className="flex justify-between items-center text-sm uppercase tracking-[0.22em] text-neutral-500">
           <Link href="/prompt" className="hover:text-white transition">
             Back
@@ -288,13 +242,11 @@ const exportGLB = async (
 
         <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_460px] gap-12 items-center">
           <div>
-            <h1 className="text-[72px] md:text-[128px] leading-[0.88] tracking-[-0.05em] font-light">
+            <h1 className="hero-title">
               Record
               <br />
               the Trace
             </h1>
-
-
 
             <div className="mt-12 flex gap-6 text-lg">
               <Link
@@ -321,16 +273,16 @@ const exportGLB = async (
           <div className="w-full">
             <div className="aspect-[3/4] bg-[#eeeeea] text-black p-5 flex flex-col justify-between shadow-2xl">
               <div>
-              <div className="flex justify-between items-start text-[10px] uppercase tracking-[0.18em] text-black/50">
-                <div>
-                  <div>Almost Here</div>
-                  <div className="mt-1 text-[9px] tracking-[0.12em] text-black/35">
-                    By {promptAnswers.name || "Unknown"}
+                <div className="flex justify-between items-start text-[10px] uppercase tracking-[0.18em] text-black/50">
+                  <div>
+                    <div>Almost Here</div>
+                    <div className="mt-1 text-[9px] tracking-[0.12em] text-black/35">
+                      By {promptAnswers.name || "Unknown"}
+                    </div>
                   </div>
-                </div>
 
-                <span>Pool Trace</span>
-              </div>
+                  <span>Pool Trace</span>
+                </div>
 
                 <div className="mt-5 aspect-square bg-black overflow-hidden">
                   {originalImage && traceMask && meshJson ? (
@@ -352,18 +304,14 @@ const exportGLB = async (
                   )}
                 </div>
 
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  {fragments.map(([label, value]) => (
-                    <div key={label}>
-                      <div className="text-[9px] uppercase tracking-[0.16em] text-black/35">
-                        {label}
-                      </div>
+                <div className="mt-5 border-t border-black/10 pt-4">
+                  <div className="text-[9px] uppercase tracking-[0.16em] text-black/35">
+                    Sentence
+                  </div>
 
-                      <p className="mt-1 text-sm leading-tight font-light">
-                        {value || "—"}
-                      </p>
-                    </div>
-                  ))}
+                  <p className="mt-2 text-sm leading-relaxed font-light text-black/80">
+                    {promptAnswers.sentence || "—"}
+                  </p>
                 </div>
               </div>
 
@@ -397,14 +345,12 @@ const exportGLB = async (
                 <div className="mt-3 flex justify-between text-[9px] uppercase tracking-[0.16em] text-black/40">
                   <span>Inflate {inflate}</span>
                   <span>Detail {surfaceDetail}</span>
-                  <span>GLB / JSON</span>
+                  <span>GLB</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
-
-
       </section>
     </main>
   );

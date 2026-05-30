@@ -8,13 +8,13 @@ import { useState } from "react";
 
 export default function UploadPage() {
   const router = useRouter();
-  const [images, setImages] = useState<string[]>([]);
+  const [image, setImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const resizeImage = (
     file: File,
-    maxWidth = 1600,
-    quality = 0.8
+    maxWidth = 768,
+    quality = 0.65
   ): Promise<string> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -53,7 +53,7 @@ export default function UploadPage() {
     });
   };
 
-  const handleFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       setIsProcessing(true);
 
@@ -62,22 +62,25 @@ export default function UploadPage() {
       sessionStorage.removeItem("originalImage");
       sessionStorage.removeItem("traceMask");
       sessionStorage.removeItem("tracePoints");
+      sessionStorage.removeItem("traceCanvasSize");
+      sessionStorage.removeItem("traceImageLayout");
+      sessionStorage.removeItem("inflateAmount");
+      sessionStorage.removeItem("surfaceDetailAmount");
+      sessionStorage.removeItem("thicknessAmount");
+      sessionStorage.removeItem("transformedImage");
+      sessionStorage.removeItem("promptAnswers");
+      sessionStorage.removeItem("textContent");
 
-      const files = Array.from(event.target.files || []);
-      const remainingSlots = 3 - images.length;
-      const selectedFiles = files.slice(0, remainingSlots);
+      const file = event.target.files?.[0];
+      if (!file) return;
 
-      if (selectedFiles.length === 0) return;
+      const resized = await resizeImage(file);
 
-      const compressed: string[] = [];
+      setImage(resized);
 
-      for (const file of selectedFiles) {
-        const resized = await resizeImage(file);
-        compressed.push(resized);
-      }
-
-      setImages((prev) => [...prev, ...compressed].slice(0, 3));
-    } catch (error: any) {
+      sessionStorage.setItem("selectedImage", resized);
+      sessionStorage.setItem("originalImage", resized);
+    } catch (error) {
       console.error(error);
       alert("Image upload failed. Please try a smaller image or take a new photo.");
     } finally {
@@ -86,96 +89,96 @@ export default function UploadPage() {
     }
   };
 
-  const removeImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
+  const continueToTrace = () => {
+    if (!image) return;
+
+    sessionStorage.setItem("selectedImage", image);
+    sessionStorage.setItem("originalImage", image);
+
+    router.push("/trace");
   };
 
-  const continueToSelect = () => {
-    try {
-      sessionStorage.setItem("uploadedImages", JSON.stringify(images));
-      router.push("/select");
-    } catch {
-      alert("Images are too large. Please upload fewer or smaller images.");
-    }
+  const removeImage = () => {
+    setImage(null);
+    sessionStorage.removeItem("selectedImage");
+    sessionStorage.removeItem("originalImage");
   };
 
   return (
-    <main className="safe-screen bg-black text-white overflow-hidden relative">
-      <section className="relative z-10 page-shell flex flex-col justify-between p-8">
+    <main className="safe-screen bg-black text-white overflow-x-hidden relative">
+      <section className="relative z-10 page-shell flex flex-col justify-between">
         <div className="flex justify-between items-center text-sm uppercase tracking-[0.22em] text-neutral-500">
           <Link href="/" className="hover:text-white transition">
             Back
           </Link>
-          <span className="text-white">01 / Upload / {images.length}/3</span>
+
+          <span className="text-white">
+            01 / Upload / {image ? "1/1" : "0/1"}
+          </span>
         </div>
 
         <div className="flex-1 flex items-center">
-          <div className="w-full max-w-6xl">
-            <h1 className="text-[72px] md:text-[128px] leading-[0.88] tracking-[-0.05em] font-light">
+          <div className="w-full max-w-5xl">
+            <h1 className="hero-title">
               Upload
               <br />
               a Trace
             </h1>
 
             <div className="mt-12 border-t border-white/20 pt-8">
-              <div className="grid grid-cols-3 gap-4">
-                {[0, 1, 2].map((slot) => {
-                  const image = images[slot];
+              {!image ? (
+                <label className="block w-full max-w-xl aspect-[4/3] border border-dashed border-white/20 bg-white/[0.025] flex items-center justify-center cursor-pointer hover:bg-white/[0.06] transition">
+                  <div className="text-center">
+                    <div className="text-5xl font-light text-neutral-500">+</div>
+                    <div className="mt-3 text-xs uppercase tracking-[0.2em] text-neutral-600">
+                      {isProcessing ? "Processing" : "Add image"}
+                    </div>
+                  </div>
 
-                  if (image) {
-                    return (
-                      <button
-                        key={slot}
-                        onClick={() => removeImage(slot)}
-                        className="relative aspect-[4/5] overflow-hidden border border-white/20 bg-white/[0.03]"
-                      >
-                        <img
-                          src={image}
-                          alt={`Uploaded ${slot + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute top-3 left-3 text-xs uppercase tracking-[0.2em] text-white/80">
-                          {slot + 1}
-                        </div>
-                      </button>
-                    );
-                  }
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFile}
+                    disabled={isProcessing}
+                  />
+                </label>
+              ) : (
+                <div className="w-full max-w-xl">
+                  <button
+                    onClick={removeImage}
+                    className="relative w-full aspect-[4/3] overflow-hidden border border-white/20 bg-white/[0.03] group"
+                  >
+                    <img
+                      src={image}
+                      alt="Uploaded trace"
+                      className="w-full h-full object-cover"
+                    />
 
-                  return (
-                    <label
-                      key={slot}
-                      className="aspect-[4/5] border border-dashed border-white/20 bg-white/[0.025] flex items-center justify-center cursor-pointer"
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition flex items-center justify-center">
+                      <span className="opacity-0 group-hover:opacity-100 transition text-sm uppercase tracking-[0.2em]">
+                        Remove
+                      </span>
+                    </div>
+                  </button>
+
+                  <div className="mt-10 flex justify-end">
+                    <button
+                      onClick={continueToTrace}
+                      disabled={isProcessing}
+                      className="px-6 py-3 border border-white/40 text-lg text-white hover:bg-white hover:text-black transition disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-white"
                     >
-                      <div className="text-center">
-                        <div className="text-5xl font-light text-neutral-500">
-                          +
-                        </div>
-                        <div className="mt-3 text-xs uppercase tracking-[0.2em] text-neutral-600">
-                          {isProcessing ? "Processing" : "Add image"}
-                        </div>
-                      </div>
+                      Continue →
+                    </button>
+                  </div>
+                </div>
+              )}
 
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleFiles}
-                        disabled={isProcessing}
-                      />
-                    </label>
-                  );
-                })}
-              </div>
-
-              <div className="mt-10 flex justify-end">
-                <button
-                  onClick={continueToSelect}
-                  disabled={images.length === 0 || isProcessing}
-                  className="px-6 py-3 border border-white/40 text-lg text-white hover:bg-white hover:text-black transition disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-white"
-                >
-                  {isProcessing ? "Processing..." : "Continue →"}
-                </button>
-              </div>
+              {isProcessing && (
+                <div className="mt-6 text-sm uppercase tracking-[0.22em] text-neutral-500">
+                  Processing image...
+                </div>
+              )}
             </div>
           </div>
         </div>

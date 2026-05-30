@@ -184,7 +184,7 @@ export default function TracePage() {
 
       <section className="relative z-10 page-shell flex flex-col justify-between p-8">
         <div className="flex justify-between items-center text-sm uppercase tracking-[0.22em] text-neutral-500">
-          <Link href="/select" className="hover:text-white transition">
+          <Link href="/upload" className="hover:text-white transition">
             Back
           </Link>
           <span className="text-white">03 / Trace</span>

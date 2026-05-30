@@ -11,43 +11,28 @@ export default function PromptPage() {
 
   const [answers, setAnswers] = useState({
     name: "",
-    remains: "",
-    repeated: "",
-    rule: "",
-    body: "",
+    sentence: "",
   });
 
   const updateAnswer = (key: keyof typeof answers, value: string) => {
     setAnswers((prev) => ({
       ...prev,
-      [key]: value.slice(0, 90),
+      [key]: value.slice(0, 180),
     }));
   };
 
   const continueToPreview = () => {
     sessionStorage.setItem("promptAnswers", JSON.stringify(answers));
-
-    const combinedText = [
-      answers.remains,
-      answers.repeated,
-      answers.rule,
-      answers.body,
-    ]
-      .filter(Boolean)
-      .join(" / ");
-
-    sessionStorage.setItem("textContent", combinedText);
+    sessionStorage.setItem("textContent", answers.sentence);
     router.push("/preview");
   };
 
-  const canContinue = Object.values(answers).some((value) => value.trim());
+  const canContinue =
+    answers.name.trim() !== "" && answers.sentence.trim() !== "";
 
   return (
-    <main className="min-h-screen bg-black text-white overflow-hidden relative">
-      <div className="absolute inset-0 " />
-      <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_25%_20%,rgba(0,255,220,0.08),transparent_28%),radial-gradient(circle_at_80%_75%,rgba(255,120,220,0.08),transparent_30%)]" />
-
-      <section className="relative z-10 min-h-screen flex flex-col justify-between p-8">
+    <main className="safe-screen bg-black text-white overflow-x-hidden relative">
+      <section className="relative z-10 page-shell flex flex-col justify-between">
         <div className="flex justify-between items-center text-sm uppercase tracking-[0.22em] text-neutral-500">
           <Link href="/inflate" className="hover:text-white transition">
             Back
@@ -56,8 +41,8 @@ export default function PromptPage() {
         </div>
 
         <div className="flex-1 flex items-center">
-          <div className="w-full max-w-6xl">
-            <h1 className="text-[72px] md:text-[128px] leading-[0.88] tracking-[-0.05em] font-light">
+          <div className="w-full max-w-5xl">
+            <h1 className="hero-title">
               Record
               <br />
               the Pool
@@ -76,33 +61,30 @@ export default function PromptPage() {
               />
             </div>
 
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-              {[
-                ["remains", "What traces remain here?"],
-                ["repeated", "What happened repeatedly?"],
-                ["rule", "What rule shaped this environment?"],
-                ["body", "Who passed through this water?"],
-              ].map(([key, label]) => (
-                <div key={key}>
-                  <div className="text-xs uppercase tracking-[0.22em] text-neutral-500 mb-3">
-                    {label}
-                  </div>
+            <div className="mt-8">
+              <div className="text-xs uppercase tracking-[0.22em] text-neutral-500 mb-3">
+                One Sentence
+              </div>
 
-                  <textarea
-                    value={answers[key as keyof typeof answers]}
-                    onChange={(e) =>
-                      updateAnswer(key as keyof typeof answers, e.target.value)
-                    }
-                    placeholder="Type one short line..."
-                    className="w-full h-32 bg-white/[0.03] border border-white/10 p-4 text-2xl font-light outline-none resize-none placeholder:text-neutral-700 focus:border-white/40"
-                  />
-                </div>
-              ))}
+              <p className="mb-4 max-w-2xl text-sm md:text-base text-neutral-500 leading-relaxed">
+                Using the clues you found, write one fictional sentence about
+                this imagined swimming pool.
+              </p>
+
+              <textarea
+                value={answers.sentence}
+                onChange={(e) => updateAnswer("sentence", e.target.value)}
+                placeholder="Write one fictional sentence..."
+                className="w-full h-40 bg-white/[0.03] border border-white/10 p-4 text-2xl font-light outline-none resize-none placeholder:text-neutral-700 focus:border-white/40"
+              />
+
+              <div className="mt-3 flex justify-between text-xs uppercase tracking-[0.2em] text-neutral-600">
+                <span>Max 180 characters</span>
+                <span>{answers.sentence.length}/180</span>
+              </div>
             </div>
 
-            <div className="mt-10 flex justify-between items-center">
-
-
+            <div className="mt-10 flex justify-end items-center">
               <button
                 onClick={continueToPreview}
                 disabled={!canContinue}
@@ -113,7 +95,6 @@ export default function PromptPage() {
             </div>
           </div>
         </div>
-
       </section>
     </main>
   );
